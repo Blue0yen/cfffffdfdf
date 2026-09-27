@@ -1,0 +1,2030 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Flight Simulator Mobile Fixed</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #000;
+      touch-action: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    /* HUD Overlay */
+    #hud {
+      position: absolute;
+      top: env(safe-area-inset-top, 10px);
+      left: env(safe-area-inset-left, 10px);
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px 14px;
+      border-radius: 8px;
+      pointer-events: none;
+      min-width: 180px;
+      z-index: 10;
+      display: none;
+      backdrop-filter: blur(4px);
+    }
+
+    #thrust-container {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    #thrust-label {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+    #thrust-bg {
+      width: 100%;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    #thrust-fill {
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, #4caf50 0%, #ffeb3b 70%, #f44336 100%);
+    }
+    .hud-text {
+      font-size: 13px;
+      margin-top: 4px;
+      font-weight: bold;
+    }
+
+    /* Mobile On-Screen Controls */
+    #mobile-controls {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 12;
+      display: none;
+    }
+
+    #joystick-zone {
+      position: absolute;
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      left: calc(20px + env(safe-area-inset-left, 0px));
+      width: 140px;
+      height: 140px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    #joystick-knob {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 50px;
+      height: 50px;
+      margin-top: -25px;
+      margin-left: -25px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+
+    #throttle-zone {
+      position: absolute;
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
+      width: 60px;
+      height: 180px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 30px;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    #throttle-handle {
+      position: absolute;
+      bottom: 50%;
+      left: 5px;
+      width: 50px;
+      height: 30px;
+      margin-bottom: -15px;
+      background: #00e5ff;
+      border-radius: 15px;
+      box-shadow: 0 0 10px rgba(0,229,255,0.5);
+      pointer-events: none;
+    }
+
+    .rudder-btn {
+      position: absolute;
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      right: calc(95px + env(safe-area-inset-right, 0px));
+      width: 55px;
+      height: 55px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    #btn-rudder-left { right: calc(160px + env(safe-area-inset-right, 0px)); }
+
+    #mobile-pause-btn {
+      position: absolute;
+      top: calc(10px + env(safe-area-inset-top, 0px));
+      right: calc(10px + env(safe-area-inset-right, 0px));
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+      pointer-events: auto;
+      z-index: 15;
+      display: none;
+    }
+
+    /* Menu Side Panel */
+    #menu-panel {
+      position: absolute;
+      top: 15px;
+      bottom: 15px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 14px;
+      border-radius: 8px;
+      color: white;
+      font-size: 12px;
+      width: 320px;
+      max-width: calc(100vw - 20px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-header {
+      display: flex;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 8px 0;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #888;
+      font-weight: bold;
+      font-size: 11px;
+      cursor: pointer;
+      margin: 0;
+      border-radius: 0;
+    }
+    .tab-btn.active {
+      color: #00e5ff;
+      border-bottom: 2px solid #00e5ff;
+    }
+
+    .tab-content {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    .tab-content.active {
+      display: flex;
+    }
+
+    #tab-model.active {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .menu-section {
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      flex-shrink: 0;
+    }
+    
+    #tab-model .menu-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    #drop-note {
+      color: #00e5ff;
+      font-size: 11px;
+      margin-top: 6px;
+    }
+
+    #pause-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      pointer-events: auto;
+      z-index: 5;
+      text-align: center;
+      padding: 20px;
+      cursor: pointer;
+    }
+    button {
+      background: #444;
+      color: #fff;
+      border: 1px solid #777;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 4px;
+      margin-right: 4px;
+      font-size: 12px;
+    }
+    button:hover { background: #666; }
+    .btn-highlight {
+      background: #008cba;
+      border-color: #00a8e8;
+    }
+    .btn-danger {
+      background: #c82333;
+      border: 1px solid #bd2130;
+      color: #fff;
+    }
+    .btn-action {
+      background: #3a3a3a;
+      border: 1px solid #666;
+      color: #fff;
+    }
+
+    .slider-group label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+      margin-top: 6px;
+    }
+    .slider-group input[type="range"], .slider-group select {
+      width: 100%;
+      margin-bottom: 4px;
+      background: #222;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 4px;
+      border-radius: 3px;
+    }
+
+    #preset-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .preset-card {
+      background: #2b2b2b;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .preset-name {
+      color: #fff;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-right: 8px;
+      flex: 1;
+    }
+    .preset-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    #preview-container {
+      width: 100%;
+      height: 140px;
+      background: #111;
+      border: 1px solid #444;
+      border-radius: 4px;
+      margin-top: 6px;
+      position: relative;
+      touch-action: none;
+    }
+    #preview-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    @media (max-width: 600px) {
+      #menu-panel {
+        left: 5px;
+        right: 5px;
+        width: auto;
+        top: 5px;
+        bottom: 5px;
+      }
+      #hud {
+        font-size: 11px;
+        padding: 6px 10px;
+        min-width: 140px;
+      }
+      .hud-text { font-size: 11px; }
+      #joystick-zone { width: 120px; height: 120px; bottom: calc(15px + env(safe-area-inset-bottom, 0px)); left: calc(15px + env(safe-area-inset-left, 0px)); }
+      #joystick-knob { width: 40px; height: 40px; margin-top: -20px; margin-left: -20px; }
+      #throttle-zone { width: 50px; height: 150px; bottom: calc(15px + env(safe-area-inset-bottom, 0px)); right: calc(15px + env(safe-area-inset-right, 0px)); }
+      #throttle-handle { width: 40px; left: 5px; }
+      .rudder-btn { width: 45px; height: 45px; bottom: calc(15px + env(safe-area-inset-bottom, 0px)); font-size: 14px; }
+      #btn-rudder-left { right: calc(130px + env(safe-area-inset-right, 0px)); }
+      #btn-rudder-right { right: calc(75px + env(safe-area-inset-right, 0px)); }
+    }
+  </style>
+</head>
+<body>
+  <div id="pause-overlay">PAUSED<br><span id="pause-subtext" style="font-size: 14px; font-weight: normal; margin-top: 8px; display: block;">(画面をタップして開始)</span></div>
+
+  <button id="mobile-pause-btn" onclick="togglePause()">MENU</button>
+
+  <div id="hud">
+    <div class="hud-text">速度 (Speed): <span id="speed-text">0</span> km/h</div>
+    <div class="hud-text">高度 (Alt): <span id="alt-text">0</span> m</div>
+    <div class="hud-text">座標 (Pos): X:<span id="pos-x">0</span> Y:<span id="pos-y">0</span> Z:<span id="pos-z">0</span></div>
+
+    <div id="thrust-container">
+      <div id="thrust-label">
+        <span>推力 (Thrust):</span>
+        <span id="thrust-text">50%</span>
+      </div>
+      <div id="thrust-bg">
+        <div id="thrust-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mobile-controls">
+    <div id="joystick-zone">
+      <div id="joystick-knob"></div>
+    </div>
+    <div id="btn-rudder-left" class="rudder-btn">Q</div>
+    <div id="btn-rudder-right" class="rudder-btn">E</div>
+    <div id="throttle-zone">
+      <div id="throttle-handle"></div>
+    </div>
+  </div>
+
+  <div id="menu-panel">
+    <div class="tab-header">
+      <button class="tab-btn active" onclick="switchTab('tab-general', this)">基本設定</button>
+      <button class="tab-btn" onclick="switchTab('tab-model', this)">3Dモデル</button>
+      <button class="tab-btn" onclick="switchTab('tab-model-settings', this)">3Dモデル設定</button>
+    </div>
+
+    <!-- 1. 基本設定 -->
+    <div id="tab-general" class="tab-content active">
+      <div class="menu-section">
+        <b style="color: #00e5ff; font-size: 13px;">操作方法:</b><br>
+        <span style="font-size: 11px;">
+        【PC操作】<br>
+        W / S : ピッチ (機首 下/上)<br>
+        A / D : ロール (機体 右/左)<br>
+        Q / E : ヨー (左旋回/右旋回)<br>
+        Shift / Space : スロットル<br>
+        ホイール : ズームイン/ズームアウト<br>
+        Escキー : ポーズ切替<br><br>
+        【モバイル操作】<br>
+        左スティック : ピッチ / ロール<br>
+        右レバー : スロットル調整<br>
+        Q / E ボタン : ヨー (左右旋回)<br>
+        スワイプ : カメラ回転<br>
+        ピンチ : ズームイン/ズームアウト
+        </span>
+      </div>
+
+      <div class="menu-section slider-group">
+        <b style="font-size: 13px;">描画パラメータ設定:</b><br>
+        <label>視界限界 (Far Clip): <span id="far-val">4500</span></label>
+        <input type="range" id="far-slider" min="1000" max="25000" step="500" value="4500" oninput="updateFar(this.value)">
+
+        <label>フォグ方式選択:</label>
+        <select id="fog-type" onchange="updateFogMode(this.value)">
+          <option value="linear">線形 (THREE.Fog)</option>
+          <option value="exp2" selected>指数 (THREE.FogExp2)</option>
+          <option value="off">オフ (Fog なし)</option>
+        </select>
+
+        <label>フォグ距離/密度: <span id="fog-val">0.00049</span></label>
+        <input type="range" id="fog-slider" min="1000" max="15000" step="500" value="6531" oninput="updateFogValue(this.value)">
+
+        <label>影の描画範囲: <span id="shadow-val">100</span></label>
+        <input type="range" id="shadow-slider" min="100" max="3000" step="50" value="100" oninput="updateShadow(this.value)">
+
+        <label>モーションブラー強さ: <span id="blur-val">0.60</span></label>
+        <input type="range" id="blur-slider" min="0" max="0.95" step="0.05" value="0.60" oninput="updateBlurValue(this.value)">
+        
+        <div style="margin-top: 12px; text-align: right;">
+          <button class="btn-danger" onclick="resetGeneralSettings()">基本設定をリセット</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 3Dモデル -->
+    <div id="tab-model" class="tab-content">
+      <div class="menu-section">
+        <b style="font-size: 13px;">1. モデル読み込み:</b><br>
+        <input type="file" id="file-input" accept=".stl,.obj" style="display: none;" onchange="handleFileSelect(event)">
+        <button class="btn-highlight" onclick="document.getElementById('file-input').click()">ファイルを選択</button>
+        <button onclick="saveCurrentToPresets()">プリセット保存</button>
+        <div id="drop-note">★ .stl / .obj ファイル対応</div>
+      </div>
+
+      <div class="menu-section">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <b style="font-size: 13px;">2. 保存済み機体リスト:</b>
+          <button class="btn-danger" onclick="resetSavedModels()">全リスト消去</button>
+        </div>
+        <div id="preset-list"></div>
+        <div id="status-msg" style="color: #ffeb3b; margin-top: 8px;">デフォルト機体</div>
+      </div>
+    </div>
+
+    <!-- 3. 3Dモデル設定 -->
+    <div id="tab-model-settings" class="tab-content">
+      <div class="menu-section">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <b style="font-size: 13px;">1. リアルタイムプレビュー:</b>
+          <button class="btn-danger" onclick="resetPreviewCamera()" style="font-size: 10px; margin: 0;">視界リセット</button>
+        </div>
+        <div id="preview-container">
+          <canvas id="preview-canvas"></canvas>
+        </div>
+        <div style="font-size: 10px; color: #aaa; margin-top: 4px;">※ドラッグでカメラ回転 / ピンチでズーム</div>
+      </div>
+
+      <div class="menu-section slider-group">
+        <b style="font-size: 13px;">2. 姿勢回転:</b><br>
+        <div style="margin-top: 4px;">
+          <button onclick="rotateModelY(event)">横90°</button>
+          <button onclick="rotateModelX(event)">縦90°</button>
+          <button onclick="rotateModelZ(event)">水平90°</button>
+        </div>
+
+        <b style="font-size: 13px; display: block; margin-top: 10px;">3. 軸反転:</b>
+        <div style="margin-top: 4px;">
+          <button onclick="flipModelScale('x')">X反転</button>
+          <button onclick="flipModelScale('y')">Y反転</button>
+          <button onclick="flipModelScale('z')">Z反転 (前後)</button>
+        </div>
+
+        <b style="font-size: 13px; display: block; margin-top: 10px;">4. スケール調整:</b>
+        <label>モデルサイズ (Scale): <span id="scale-val">1.0</span></label>
+        <input type="range" id="scale-slider" min="0.2" max="3.0" step="0.1" value="1.0" oninput="updateModelScale(this.value)">
+
+        <div style="margin-top: 12px; text-align: right;">
+          <button class="btn-danger" onclick="resetModelTransformSettings()">姿勢・スケールリセット</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/AfterimageShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/AfterimagePass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/FXAAShader.js"></script>
+
+  <script>
+    const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    let currentInputMode = isTouchDevice ? 'mobile' : 'pc';
+
+    function setInputMode(mode) {
+      if (currentInputMode === mode) return;
+      currentInputMode = mode;
+      
+      const subtext = document.getElementById('pause-subtext');
+      if (mode === 'mobile') {
+        if (subtext) subtext.textContent = '(画面をタップして開始)';
+      } else {
+        if (subtext) subtext.textContent = '(画面をクリックして開始)';
+      }
+
+      if (!isPaused) {
+        const mobileControls = document.getElementById('mobile-controls');
+        const mobilePauseBtn = document.getElementById('mobile-pause-btn');
+        if (mode === 'mobile') {
+          mobileControls.style.display = 'block';
+          mobilePauseBtn.style.display = 'block';
+        } else {
+          mobileControls.style.display = 'none';
+          mobilePauseBtn.style.display = 'none';
+        }
+      }
+    }
+
+    window.addEventListener('touchstart', () => setInputMode('mobile'), { passive: true });
+    window.addEventListener('keydown', () => setInputMode('pc'), { passive: true });
+    window.addEventListener('mousedown', () => {
+      if (isPaused && !isTouchDevice && document.activeElement && document.activeElement.tagName === 'BODY') {
+        setInputMode('pc');
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+      if (!isPaused && e.target.closest('#mobile-controls, #pause-overlay')) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    const DB_NAME = 'AIFS1_1_ModelDB';
+    const STORE_NAME = 'models';
+    let db = null;
+
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+          }
+        };
+        req.onsuccess = (e) => {
+          db = e.target.result;
+          resolve(db);
+        };
+        req.onerror = (e) => reject(e);
+      });
+    }
+
+    function idbSaveModel(modelData) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        
+        const reqAll = store.getAll();
+        reqAll.onsuccess = () => {
+          const existing = reqAll.result.find(item => item.name === modelData.name);
+          if (existing) {
+            modelData.id = existing.id;
+          }
+          const putReq = store.put(modelData);
+          putReq.onsuccess = () => resolve(putReq.result);
+          putReq.onerror = (e) => reject(e);
+        };
+      });
+    }
+
+    function idbGetAllModels() {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = (e) => reject(e);
+      });
+    }
+
+    function idbDeleteModel(id) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e);
+      });
+    }
+
+    function idbClearAllModels() {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.clear();
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e);
+      });
+    }
+
+    let isPaused = true;
+
+    function switchTab(tabId, btnElem) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      if (btnElem) {
+        btnElem.classList.add('active');
+      }
+      document.getElementById(tabId).classList.add('active');
+
+      if (tabId === 'tab-model-settings') {
+        setTimeout(resizePreviewCanvas, 10);
+      }
+    }
+
+    const scene = new THREE.Scene();
+    const skyColor = new THREE.Color(0x87ceeb);
+    scene.background = skyColor;
+    scene.fog = new THREE.FogExp2(skyColor, 0.00049);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 4500);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    
+    const pixelRatio = Math.min(window.devicePixelRatio, 2);
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    const renderTarget = new THREE.WebGLRenderTarget(
+      window.innerWidth * pixelRatio,
+      window.innerHeight * pixelRatio,
+      {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.HalfFloatType
+      }
+    );
+
+    const composer = new THREE.EffectComposer(renderer, renderTarget);
+    const renderPass = new THREE.RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const afterimagePass = new THREE.AfterimagePass();
+    afterimagePass.uniforms['damp'].value = 0.60;
+    composer.addPass(afterimagePass);
+
+    const fxaaPass = new THREE.ShaderPass(THREE.FXAAShader);
+    fxaaPass.uniforms['resolution'].value.x = 1 / (window.innerWidth * pixelRatio);
+    fxaaPass.uniforms['resolution'].value.y = 1 / (window.innerHeight * pixelRatio);
+    composer.addPass(fxaaPass);
+
+    function updateBlurValue(val, save = true) {
+      val = parseFloat(val);
+      afterimagePass.uniforms['damp'].value = val;
+      document.getElementById('blur-val').textContent = val.toFixed(2);
+      if (save) saveSettings();
+    }
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 3000;
+
+    let shadowDist = 100;
+    dirLight.shadow.camera.left = -shadowDist;
+    dirLight.shadow.camera.right = shadowDist;
+    dirLight.shadow.camera.top = shadowDist;
+    dirLight.shadow.camera.bottom = -shadowDist;
+    dirLight.shadow.bias = -0.0005;
+
+    scene.add(dirLight);
+    scene.add(dirLight.target);
+
+    function updateFar(val, save = true) {
+      val = parseFloat(val);
+      camera.far = val;
+      camera.updateProjectionMatrix();
+      document.getElementById('far-val').textContent = val;
+      if (save) saveSettings();
+    }
+
+    let currentFogType = 'exp2';
+
+    function updateFogMode(type, save = true) {
+      currentFogType = type;
+      const sliderVal = parseFloat(document.getElementById('fog-slider').value);
+
+      if (type === 'off') {
+        scene.fog = null;
+        document.getElementById('fog-val').textContent = "オフ";
+      } else if (type === 'linear') {
+        scene.fog = new THREE.Fog(skyColor, 1000, sliderVal);
+        document.getElementById('fog-val').textContent = `1000〜${sliderVal}`;
+      } else if (type === 'exp2') {
+        const density = 3.2 / sliderVal;
+        scene.fog = new THREE.FogExp2(skyColor, density);
+        document.getElementById('fog-val').textContent = density.toFixed(5);
+      }
+
+      scene.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.needsUpdate = true;
+        }
+      });
+      if (save) saveSettings();
+    }
+
+    function updateFogValue(val, save = true) {
+      val = parseFloat(val);
+      if (currentFogType === 'linear') {
+        if (!scene.fog) scene.fog = new THREE.Fog(skyColor, 1000, val);
+        scene.fog.far = val;
+        document.getElementById('fog-val').textContent = `1000〜${val}`;
+      } else if (currentFogType === 'exp2') {
+        const density = 3.2 / val;
+        if (!scene.fog) scene.fog = new THREE.FogExp2(skyColor, density);
+        scene.fog.density = density;
+        document.getElementById('fog-val').textContent = density.toFixed(5);
+      }
+      if (save) saveSettings();
+    }
+
+    function updateShadow(val, save = true) {
+      shadowDist = parseFloat(val);
+      dirLight.shadow.camera.left = -shadowDist;
+      dirLight.shadow.camera.right = shadowDist;
+      dirLight.shadow.camera.top = shadowDist;
+      dirLight.shadow.camera.bottom = -shadowDist;
+      dirLight.shadow.camera.updateProjectionMatrix();
+      document.getElementById('shadow-val').textContent = shadowDist;
+      if (save) saveSettings();
+    }
+
+    function hash(x, z) {
+      const ix = Math.floor(x);
+      const iz = Math.floor(z);
+      let h = Math.imul(ix, 374761393) + Math.imul(iz, 668265263);
+      h = Math.imul(h ^ (h >>> 13), 1274126177);
+      return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+    }
+
+    function noise(x, z) {
+      const ix = Math.floor(x);
+      const iz = Math.floor(z);
+      const fx = x - ix;
+      const fz = z - iz;
+
+      const ux = fx * fx * (3.0 - 2.0 * fx);
+      const uz = fz * fz * (3.0 - 2.0 * fz);
+
+      const a = hash(ix, iz);
+      const b = hash(ix + 1, iz);
+      const c = hash(ix, iz + 1);
+      const d = hash(ix + 1, iz + 1);
+
+      return a * (1 - ux) * (1 - uz) +
+             b * ux * (1 - uz) +
+             c * (1 - ux) * uz +
+             d * ux * uz;
+    }
+
+    function fbm(x, z) {
+      let total = 0;
+      let amp = 1.0;
+      let freq = 1.0;
+      let maxVal = 0;
+      for (let i = 0; i < 4; i++) {
+        total += noise(x * freq, z * freq) * amp;
+        maxVal += amp;
+        amp *= 0.5;
+        freq *= 2.0;
+      }
+      return total / maxVal;
+    }
+
+    const terrainData = {
+      offsetX: Math.random() * 1000,
+      offsetZ: Math.random() * 1000,
+      peaks: []
+    };
+
+    function getTerrainHeight(x, z) {
+      const nx = (x + terrainData.offsetX) * 0.0006;
+      const nz = (z + terrainData.offsetZ) * 0.0006;
+
+      let rawY = (fbm(nx, nz) - 0.3) * 1100;
+
+      terrainData.peaks.forEach(peak => {
+        const dx = x - peak.x;
+        const dz = z - peak.z;
+        const distSq = dx * dx + dz * dz;
+        const basePeak = Math.exp(-distSq / (peak.radius * peak.radius));
+        rawY += peak.height * Math.pow(basePeak, 1.1);
+      });
+
+      const px = (x + terrainData.offsetX);
+      const pz = (z + terrainData.offsetZ);
+
+      const hillNoise = (fbm(px * 0.0012, pz * 0.0012) - 0.1) * 320.0;
+      const lowTerrain = Math.max(5.0, hillNoise);
+
+      if (rawY < 30) {
+        return lowTerrain;
+      } else if (rawY < 200) {
+        const t = (rawY - 30) / 170;
+        const smoothT = t * t * (3 - 2 * t);
+        return lowTerrain * (1 - smoothT) + rawY * smoothT;
+      } else {
+        const heightRatio = Math.min(1.0, (rawY - 200) / 700);
+        const roughNoise = (fbm(x * 0.012, z * 0.012) - 0.5) * 160;
+        return rawY + roughNoise * heightRatio;
+      }
+    }
+
+    let terrainMesh = null;
+
+    function createTerrain() {
+      const terrainSize = 20000;
+      const segments = 256;
+      const geometry = new THREE.PlaneGeometry(terrainSize, terrainSize, segments, segments);
+      geometry.rotateX(-Math.PI / 2);
+
+      const numPeaks = 6 + Math.floor(Math.random() * 6);
+      for (let p = 0; p < numPeaks; p++) {
+        terrainData.peaks.push({
+          x: (Math.random() - 0.5) * (terrainSize * 0.6),
+          z: (Math.random() - 0.5) * (terrainSize * 0.6),
+          height: 1000 + Math.random() * 500,
+          radius: 1100 + Math.random() * 500
+        });
+      }
+
+      const pos = geometry.attributes.position;
+      const colors = [];
+
+      const colorBase = new THREE.Color(0x3d7041);
+      const colorRock = new THREE.Color(0x5a6552);
+      const colorSnow = new THREE.Color(0xffffff);
+      const tempColor = new THREE.Color();
+
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const z = pos.getZ(i);
+        const y = getTerrainHeight(x, z);
+
+        pos.setY(i, y);
+
+        if (y <= 0) {
+          tempColor.copy(colorBase);
+        } else if (y < 200) {
+          tempColor.copy(colorBase);
+        } else if (y < 700) {
+          const t = (y - 200) / 500;
+          tempColor.copy(colorBase).lerp(colorRock, t);
+        } else if (y <= 950) {
+          const t = (y - 700) / 250;
+          tempColor.copy(colorRock).lerp(colorSnow, t);
+        } else {
+          tempColor.copy(colorSnow);
+        }
+
+        colors.push(tempColor.r, tempColor.g, tempColor.b);
+      }
+
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      geometry.computeVertexNormals();
+
+      const material = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.85,
+        flatShading: true
+      });
+
+      terrainMesh = new THREE.Mesh(geometry, material);
+      terrainMesh.receiveShadow = true;
+      terrainMesh.castShadow = true;
+      scene.add(terrainMesh);
+    }
+
+    createTerrain();
+
+    const airplane = new THREE.Group();
+    const modelContainer = new THREE.Group();
+    airplane.add(modelContainer);
+
+    let currentModelData = {
+      type: 'default',
+      name: 'デフォルト機体',
+      base64: null,
+      rotX: 0,
+      rotY: 0,
+      rotZ: 0,
+      scale: 1.0,
+      scaleX: 1,
+      scaleY: 1,
+      scaleZ: 1
+    };
+
+    let previewScene, previewCamera, previewRenderer, previewGroup;
+    let previewCamDistance = 10;
+    let previewCamRotX = 0.4;
+    let previewCamRotY = 0.6;
+    let isPreviewDragging = false;
+    let prevMousePos = { x: 0, y: 0 };
+
+    function initPreview() {
+      const container = document.getElementById('preview-container');
+      const canvas = document.getElementById('preview-canvas');
+
+      previewScene = new THREE.Scene();
+      previewScene.background = new THREE.Color(0x1a1a1a);
+
+      previewCamera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+      updatePreviewCameraPosition();
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+      const light = new THREE.DirectionalLight(0xffffff, 0.8);
+      light.position.set(5, 10, 7);
+      previewScene.add(ambient, light);
+
+      const grid = new THREE.GridHelper(10, 10, 0x444444, 0x222222);
+      grid.position.y = -1.5;
+      previewScene.add(grid);
+
+      previewGroup = new THREE.Group();
+      previewScene.add(previewGroup);
+
+      previewRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+      previewRenderer.setSize(container.clientWidth, container.clientHeight);
+
+      container.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'touch') return;
+        isPreviewDragging = true;
+        prevMousePos = { x: e.clientX, y: e.clientY };
+        container.setPointerCapture(e.pointerId);
+      });
+
+      container.addEventListener('pointermove', (e) => {
+        if (e.pointerType === 'touch') return;
+        if (!isPreviewDragging) return;
+        const deltaX = e.clientX - prevMousePos.x;
+        const deltaY = e.clientY - prevMousePos.y;
+
+        previewCamRotY -= deltaX * 0.01;
+        previewCamRotX += deltaY * 0.01;
+        previewCamRotX = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, previewCamRotX));
+
+        prevMousePos = { x: e.clientX, y: e.clientY };
+        updatePreviewCameraPosition();
+      });
+
+      const endDrag = (e) => {
+        if (isPreviewDragging) {
+          isPreviewDragging = false;
+          try { container.releasePointerCapture(e.pointerId); } catch(err) {}
+        }
+      };
+      container.addEventListener('pointerup', endDrag);
+      container.addEventListener('pointercancel', endDrag);
+
+      container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        previewCamDistance += e.deltaY * 0.008;
+        previewCamDistance = Math.max(2, Math.min(30, previewCamDistance));
+        updatePreviewCameraPosition();
+      }, { passive: false });
+
+      let previewTouchLastPos = { x: 0, y: 0 };
+      let previewPinchDist = 0;
+      let initialPreviewCamDist = 10;
+
+      container.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          previewTouchLastPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        } else if (e.touches.length >= 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          previewPinchDist = Math.hypot(dx, dy);
+          initialPreviewCamDist = previewCamDistance;
+        }
+      }, { passive: true });
+
+      container.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1) {
+          const deltaX = e.touches[0].clientX - previewTouchLastPos.x;
+          const deltaY = e.touches[0].clientY - previewTouchLastPos.y;
+
+          previewCamRotY -= deltaX * 0.01;
+          previewCamRotX += deltaY * 0.01;
+          previewCamRotX = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, previewCamRotX));
+
+          previewTouchLastPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          updatePreviewCameraPosition();
+        } else if (e.touches.length >= 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const currentDist = Math.hypot(dx, dy);
+
+          if (previewPinchDist > 0) {
+            const factor = previewPinchDist / currentDist;
+            previewCamDistance = Math.max(2, Math.min(30, initialPreviewCamDist * factor));
+            updatePreviewCameraPosition();
+          }
+        }
+      }, { passive: true });
+    }
+
+    function updatePreviewCameraPosition() {
+      if (!previewCamera) return;
+      previewCamera.position.x = previewCamDistance * Math.cos(previewCamRotX) * Math.sin(previewCamRotY);
+      previewCamera.position.y = previewCamDistance * Math.sin(previewCamRotX);
+      previewCamera.position.z = previewCamDistance * Math.cos(previewCamRotX) * Math.cos(previewCamRotY);
+      previewCamera.lookAt(0, 0, 0);
+    }
+
+    function resetPreviewCamera() {
+      previewCamDistance = 10;
+      previewCamRotX = 0.4;
+      previewCamRotY = 0.6;
+      updatePreviewCameraPosition();
+    }
+
+    function resizePreviewCanvas() {
+      if (previewRenderer && previewCamera) {
+        const container = document.getElementById('preview-container');
+        if (container.clientWidth > 0 && container.clientHeight > 0) {
+          previewCamera.aspect = container.clientWidth / container.clientHeight;
+          previewCamera.updateProjectionMatrix();
+          previewRenderer.setSize(container.clientWidth, container.clientHeight);
+        }
+      }
+    }
+
+    function updatePreview() {
+      if (!previewRenderer) return;
+      while (previewGroup.children.length > 0) {
+        previewGroup.remove(previewGroup.children[0]);
+      }
+      if (modelContainer.children.length > 0) {
+        const clone = modelContainer.clone();
+        previewGroup.add(clone);
+      }
+    }
+
+    function applyShadows(object) {
+      object.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+    }
+
+    function syncModelTransforms() {
+      modelContainer.rotation.set(currentModelData.rotX, currentModelData.rotY, currentModelData.rotZ);
+      
+      const s = currentModelData.scale || 1.0;
+      const sx = (currentModelData.scaleX || 1) * s;
+      const sy = (currentModelData.scaleY || 1) * s;
+      const sz = (currentModelData.scaleZ || 1) * s;
+      modelContainer.scale.set(sx, sy, sz);
+
+      document.getElementById('scale-val').textContent = s.toFixed(1);
+      document.getElementById('scale-slider').value = s;
+
+      updatePreview();
+    }
+
+    function buildDefaultAirplane() {
+      while (modelContainer.children.length > 0) {
+        modelContainer.remove(modelContainer.children[0]);
+      }
+
+      const defaultGroup = new THREE.Group();
+      const bodyGeo = new THREE.ConeGeometry(1, 6, 16);
+      bodyGeo.rotateX(Math.PI / 2);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdc143c, roughness: 0.4 });
+      defaultGroup.add(new THREE.Mesh(bodyGeo, bodyMat));
+
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+      const wingGeo = new THREE.BoxGeometry(8, 0.1, 1.5);
+      defaultGroup.add(new THREE.Mesh(wingGeo, wingMat));
+
+      const tailGeo = new THREE.BoxGeometry(2.5, 0.1, 0.8);
+      const tail = new THREE.Mesh(tailGeo, wingMat);
+      tail.position.set(0, 0, -2.2);
+      defaultGroup.add(tail);
+
+      const vTailGeo = new THREE.BoxGeometry(0.1, 2.6, 1.2);
+      const vTail = new THREE.Mesh(vTailGeo, wingMat);
+      vTail.position.set(0, 1.3, -2.2);
+      defaultGroup.add(vTail);
+
+      applyShadows(defaultGroup);
+      modelContainer.add(defaultGroup);
+
+      currentModelData = {
+        type: 'default',
+        name: 'デフォルト機体',
+        base64: null,
+        rotX: 0,
+        rotY: 0,
+        rotZ: 0,
+        scale: 1.0,
+        scaleX: 1,
+        scaleY: 1,
+        scaleZ: 1
+      };
+
+      syncModelTransforms();
+
+      const statusMsg = document.getElementById('status-msg');
+      if (statusMsg) statusMsg.textContent = "デフォルト機体";
+      updatePresetUI();
+    }
+
+    airplane.position.set(0, 600, 0);
+    scene.add(airplane);
+
+    const thrustText = document.getElementById('thrust-text');
+    const thrustFill = document.getElementById('thrust-fill');
+    const speedText = document.getElementById('speed-text');
+    const altText = document.getElementById('alt-text');
+    const posXText = document.getElementById('pos-x');
+    const posYText = document.getElementById('pos-y');
+    const posZText = document.getElementById('pos-z');
+    const statusMsg = document.getElementById('status-msg');
+
+    const MASS = 2.6;
+    const GRAVITY = 9.8;
+    const DRAG_COEFF = 0.01;
+    const MAX_THRUST = 450.0;
+
+    let throttle = 0.5;
+    const velocity = new THREE.Vector3(0, 0, 20.0);
+
+    let pitchVel = 0, rollVel = 0, yawVel = 0;
+    const keys = {};
+
+    const mobileInputs = {
+      pitch: 0,
+      roll: 0,
+      yaw: 0
+    };
+
+    let cameraYaw = 0;
+    let cameraPitch = 0.2;
+    let targetCameraYaw = 0;
+    let targetCameraPitch = 0.2;
+    let cameraDistance = 12;
+    let targetCameraDistance = 12;
+    let currentPlaneHeading = 0;
+
+    function updateCameraPositionInstant() {
+      const totalYaw = currentPlaneHeading + cameraYaw;
+      const pitchFactor = Math.cos(cameraPitch);
+
+      camera.position.set(
+        airplane.position.x - cameraDistance * pitchFactor * Math.sin(totalYaw),
+        airplane.position.y + cameraDistance * Math.sin(cameraPitch),
+        airplane.position.z - cameraDistance * pitchFactor * Math.cos(totalYaw)
+      );
+      camera.lookAt(airplane.position);
+    }
+
+    function updateInitialPositionUI() {
+      speedText.textContent = (velocity.length() * 3.6).toFixed(1);
+      altText.textContent = airplane.position.y.toFixed(1);
+      posXText.textContent = airplane.position.x.toFixed(0);
+      posYText.textContent = airplane.position.y.toFixed(0);
+      posZText.textContent = airplane.position.z.toFixed(0);
+    }
+
+    function setPauseState(paused) {
+      isPaused = paused;
+      const menuPanel = document.getElementById('menu-panel');
+      const hud = document.getElementById('hud');
+      const overlay = document.getElementById('pause-overlay');
+      const mobileControls = document.getElementById('mobile-controls');
+      const mobilePauseBtn = document.getElementById('mobile-pause-btn');
+
+      if (isPaused) {
+        menuPanel.style.display = 'flex';
+        hud.style.display = 'none';
+        overlay.style.display = 'flex';
+        mobileControls.style.display = 'none';
+        mobilePauseBtn.style.display = 'none';
+        if (document.pointerLockElement) {
+          try { document.exitPointerLock(); } catch(e){}
+        }
+      } else {
+        menuPanel.style.display = 'none';
+        hud.style.display = 'block';
+        overlay.style.display = 'none';
+        
+        if (currentInputMode === 'mobile') {
+          mobileControls.style.display = 'block';
+          mobilePauseBtn.style.display = 'block';
+        } else {
+          mobileControls.style.display = 'none';
+          mobilePauseBtn.style.display = 'none';
+        }
+      }
+    }
+
+    function togglePause() {
+      setPauseState(!isPaused);
+    }
+
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement === document.body) {
+        setInputMode('pc');
+        setPauseState(false);
+      } else if (!isTouchDevice) {
+        setPauseState(true);
+      }
+    });
+
+    function resetGeneralSettings() {
+      if (!confirm("本当にリセットしますか？")) return;
+      
+      document.getElementById('far-slider').value = 4500;
+      updateFar(4500, false);
+
+      document.getElementById('fog-type').value = 'exp2';
+      document.getElementById('fog-slider').value = 6531;
+      updateFogMode('exp2', false);
+
+      document.getElementById('shadow-slider').value = 100;
+      updateShadow(100, false);
+
+      document.getElementById('blur-slider').value = 0.60;
+      updateBlurValue(0.60, false);
+
+      targetCameraDistance = 12;
+      cameraDistance = 12;
+      updateCameraPositionInstant();
+
+      saveSettings();
+    }
+
+    async function resetSavedModels() {
+      if (!confirm("本当に消去しますか？")) return;
+
+      await idbClearAllModels();
+      buildDefaultAirplane();
+      saveSettings();
+      setPauseState(true);
+    }
+
+    function resetModelTransformSettings() {
+      if (!confirm("本当にリセットしますか？")) return;
+
+      currentModelData.rotX = 0;
+      currentModelData.rotY = 0;
+      currentModelData.rotZ = 0;
+      currentModelData.scale = 1.0;
+      currentModelData.scaleX = 1;
+      currentModelData.scaleY = 1;
+      currentModelData.scaleZ = 1;
+
+      syncModelTransforms();
+      saveSettings();
+    }
+
+    function saveSettings() {
+      const settings = {
+        far: document.getElementById('far-slider').value,
+        fogType: document.getElementById('fog-type').value,
+        fogVal: document.getElementById('fog-slider').value,
+        shadow: document.getElementById('shadow-slider').value,
+        blur: document.getElementById('blur-slider').value,
+        cameraDistance: targetCameraDistance,
+        lastModelName: currentModelData ? currentModelData.name : 'デフォルト機体'
+      };
+      try {
+        localStorage.setItem('ai_fs_1_1_settings', JSON.stringify(settings));
+      } catch (e) {
+        console.warn("Storage write limit exceeded");
+      }
+    }
+
+    async function saveCurrentToPresets() {
+      if (currentModelData.type === 'default') {
+        alert("デフォルト機体はプリセット保存の必要がありません。");
+        return;
+      }
+      try {
+        await idbSaveModel({ ...currentModelData });
+        saveSettings();
+        await updatePresetUI();
+        statusMsg.textContent = `プリセット保存済: ${currentModelData.name}`;
+      } catch (e) {
+        console.error(e);
+        alert("IndexedDBへの保存に失敗しました。");
+      }
+    }
+
+    async function loadPreset(id, e) {
+      if (e) e.stopPropagation();
+      if (id === -1) {
+        buildDefaultAirplane();
+      } else {
+        const presets = await idbGetAllModels();
+        const item = presets.find(p => p.id === id);
+        if (item) {
+          loadModelFromData(item);
+        }
+      }
+      saveSettings();
+      setPauseState(true);
+    }
+
+    async function deleteSelectedPreset(id, e) {
+      if (e) e.stopPropagation();
+      if (id === -1) {
+        alert("デフォルト機体は削除できません。");
+        return;
+      }
+      const presets = await idbGetAllModels();
+      const target = presets.find(p => p.id === id);
+      
+      await idbDeleteModel(id);
+      
+      if (target && currentModelData.name === target.name) {
+        buildDefaultAirplane();
+      } else {
+        await updatePresetUI();
+      }
+      saveSettings();
+      setPauseState(true);
+    }
+
+    async function updatePresetUI() {
+      const presetList = document.getElementById('preset-list');
+      if (!presetList) return;
+      presetList.innerHTML = '';
+
+      const defCard = document.createElement('div');
+      defCard.className = 'preset-card';
+      defCard.innerHTML = `
+        <span class="preset-name">デフォルト機体</span>
+        <div class="preset-actions">
+          <button class="btn-action" onclick="loadPreset(-1, event)">読み込み</button>
+        </div>
+      `;
+      presetList.appendChild(defCard);
+
+      const presets = await idbGetAllModels();
+      presets.forEach((p) => {
+        const card = document.createElement('div');
+        card.className = 'preset-card';
+        card.innerHTML = `
+          <span class="preset-name">${p.name}</span>
+          <div class="preset-actions">
+            <button class="btn-action" onclick="loadPreset(${p.id}, event)">読み込み</button>
+            <button class="btn-danger" onclick="deleteSelectedPreset(${p.id}, event)">削除</button>
+          </div>
+        `;
+        presetList.appendChild(card);
+      });
+    }
+
+    function loadModelFromData(modelData) {
+      currentModelData = { 
+        scale: 1.0, scaleX: 1, scaleY: 1, scaleZ: 1,
+        ...modelData 
+      };
+      statusMsg.textContent = "読み込み中...";
+
+      const ext = currentModelData.name.split('.').pop().toLowerCase();
+      let loader = ext === 'obj' ? new THREE.OBJLoader() : new THREE.STLLoader();
+      
+      try {
+        if (ext === 'obj') {
+          const obj = loader.parse(atob(currentModelData.base64.split(',')[1]));
+          obj.traverse((child) => {
+            if (child.isMesh) {
+              child.geometry.computeVertexNormals();
+              child.material.side = THREE.DoubleSide;
+            }
+          });
+          replaceAirplaneModel(obj, currentModelData.name, false);
+        } else {
+          const binary = atob(currentModelData.base64.split(',')[1]);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          const geometry = loader.parse(bytes.buffer);
+          geometry.center();
+          geometry.computeVertexNormals();
+          const material = new THREE.MeshStandardMaterial({ 
+            color: 0x3a86ff, 
+            roughness: 0.4,
+            metalness: 0.2,
+            side: THREE.DoubleSide 
+          });
+          const mesh = new THREE.Mesh(geometry, material);
+          replaceAirplaneModel(mesh, currentModelData.name, false);
+        }
+      } catch (err) {
+        statusMsg.textContent = "モデルの復元に失敗";
+        console.error(err);
+      }
+    }
+
+    function loadModelFile(file) {
+      if (!file) return;
+      const fileName = file.name.toLowerCase();
+      const reader = new FileReader();
+
+      statusMsg.textContent = "読み込み中...";
+
+      reader.onload = async function(e) {
+        const base64Data = e.target.result;
+        currentModelData = {
+          type: fileName.endsWith('.obj') ? 'obj' : 'stl',
+          name: file.name,
+          base64: base64Data,
+          rotX: 0,
+          rotY: 0,
+          rotZ: 0,
+          scale: 1.0,
+          scaleX: 1,
+          scaleY: 1,
+          scaleZ: 1
+        };
+        loadModelFromData(currentModelData);
+        saveSettings();
+        setPauseState(true);
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        loadModelFile(e.target.files[0]);
+      }
+    }
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        loadModelFile(files[0]);
+      }
+    });
+
+    function replaceAirplaneModel(newModel, filename, resetRot = true) {
+      while (modelContainer.children.length > 0) {
+        modelContainer.remove(modelContainer.children[0]);
+      }
+      
+      if (resetRot) {
+        currentModelData.rotX = 0;
+        currentModelData.rotY = 0;
+        currentModelData.rotZ = 0;
+        currentModelData.scale = 1.0;
+        currentModelData.scaleX = 1;
+        currentModelData.scaleY = 1;
+        currentModelData.scaleZ = 1;
+      }
+
+      const box = new THREE.Box3().setFromObject(newModel);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      newModel.position.sub(center);
+
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      if (maxDim > 0) {
+        const targetSize = 6.0;
+        const scale = targetSize / maxDim;
+        newModel.scale.set(scale, scale, scale);
+      }
+
+      applyShadows(newModel);
+      modelContainer.add(newModel);
+      
+      syncModelTransforms();
+      statusMsg.textContent = `読込完: ${filename}`;
+      updatePresetUI();
+    }
+
+    function rotateModelY(e) {
+      if (e) e.stopPropagation();
+      currentModelData.rotY += Math.PI / 2;
+      syncModelTransforms();
+      saveSettings();
+    }
+
+    function rotateModelX(e) {
+      if (e) e.stopPropagation();
+      currentModelData.rotX += Math.PI / 2;
+      syncModelTransforms();
+      saveSettings();
+    }
+
+    function rotateModelZ(e) {
+      if (e) e.stopPropagation();
+      currentModelData.rotZ += Math.PI / 2;
+      syncModelTransforms();
+      saveSettings();
+    }
+
+    function flipModelScale(axis) {
+      if (axis === 'x') currentModelData.scaleX = (currentModelData.scaleX || 1) * -1;
+      if (axis === 'y') currentModelData.scaleY = (currentModelData.scaleY || 1) * -1;
+      if (axis === 'z') currentModelData.scaleZ = (currentModelData.scaleZ || 1) * -1;
+      syncModelTransforms();
+      saveSettings();
+    }
+
+    function updateModelScale(val) {
+      currentModelData.scale = parseFloat(val);
+      syncModelTransforms();
+      saveSettings();
+    }
+
+    async function restoreSettings() {
+      await initDB();
+      initPreview();
+      buildDefaultAirplane();
+
+      const saved = localStorage.getItem('ai_fs_1_1_settings');
+      if (!saved) return;
+
+      try {
+        const settings = JSON.parse(saved);
+        
+        if (settings.far) {
+          document.getElementById('far-slider').value = settings.far;
+          updateFar(settings.far, false);
+        }
+        if (settings.fogType) {
+          document.getElementById('fog-type').value = settings.fogType;
+        }
+        if (settings.fogVal) {
+          document.getElementById('fog-slider').value = settings.fogVal;
+          updateFogMode(document.getElementById('fog-type').value, false);
+        }
+        if (settings.shadow) {
+          document.getElementById('shadow-slider').value = settings.shadow;
+          updateShadow(settings.shadow, false);
+        }
+        if (settings.blur) {
+          document.getElementById('blur-slider').value = settings.blur;
+          updateBlurValue(settings.blur, false);
+        }
+        if (settings.cameraDistance !== undefined) {
+          targetCameraDistance = parseFloat(settings.cameraDistance);
+          cameraDistance = targetCameraDistance;
+          updateCameraPositionInstant();
+        }
+
+        if (settings.lastModelName) {
+          const presets = await idbGetAllModels();
+          const lastModel = presets.find(p => p.name === settings.lastModelName);
+          if (lastModel) {
+            loadModelFromData(lastModel);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to restore settings", e);
+      }
+    }
+
+    function initMobileControls() {
+      const joyZone = document.getElementById('joystick-zone');
+      const joyKnob = document.getElementById('joystick-knob');
+      let joyTouchId = null;
+      let joyCenter = { x: 0, y: 0 };
+
+      joyZone.addEventListener('touchstart', (e) => {
+        setInputMode('mobile');
+        if (joyTouchId !== null) return;
+        const touch = e.changedTouches[0];
+        joyTouchId = touch.identifier;
+        const rect = joyZone.getBoundingClientRect();
+        joyCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        updateJoystick(touch);
+        e.preventDefault();
+      }, { passive: false });
+
+      window.addEventListener('touchmove', (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === joyTouchId) {
+            updateJoystick(e.changedTouches[i]);
+            e.preventDefault();
+            break;
+          }
+        }
+      }, { passive: false });
+
+      const endJoy = (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === joyTouchId) {
+            joyTouchId = null;
+            joyKnob.style.transform = `translate(0px, 0px)`;
+            mobileInputs.pitch = 0;
+            mobileInputs.roll = 0;
+            break;
+          }
+        }
+      };
+      window.addEventListener('touchend', endJoy);
+      window.addEventListener('touchcancel', endJoy);
+
+      function updateJoystick(touch) {
+        const maxRadius = 45;
+        let dx = touch.clientX - joyCenter.x;
+        let dy = touch.clientY - joyCenter.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > maxRadius) {
+          dx = (dx / dist) * maxRadius;
+          dy = (dy / dist) * maxRadius;
+        }
+
+        joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+        mobileInputs.roll = dx / maxRadius;
+        mobileInputs.pitch = -dy / maxRadius;
+      }
+
+      const thrZone = document.getElementById('throttle-zone');
+      const thrHandle = document.getElementById('throttle-handle');
+      let thrTouchId = null;
+
+      function updateThrottle(touch) {
+        const rect = thrZone.getBoundingClientRect();
+        let y = touch.clientY - rect.top;
+        y = Math.max(0, Math.min(rect.height, y));
+        
+        throttle = 1.0 - (y / rect.height);
+        thrHandle.style.bottom = `${throttle * 100}%`;
+      }
+
+      thrZone.addEventListener('touchstart', (e) => {
+        setInputMode('mobile');
+        if (thrTouchId !== null) return;
+        const touch = e.changedTouches[0];
+        thrTouchId = touch.identifier;
+        updateThrottle(touch);
+        e.preventDefault();
+      }, { passive: false });
+
+      window.addEventListener('touchmove', (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === thrTouchId) {
+            updateThrottle(e.changedTouches[i]);
+            e.preventDefault();
+            break;
+          }
+        }
+      }, { passive: false });
+
+      const endThr = (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === thrTouchId) {
+            thrTouchId = null;
+            break;
+          }
+        }
+      };
+      window.addEventListener('touchend', endThr);
+      window.addEventListener('touchcancel', endThr);
+
+      const btnRudderL = document.getElementById('btn-rudder-left');
+      const btnRudderR = document.getElementById('btn-rudder-right');
+
+      btnRudderL.addEventListener('touchstart', (e) => { setInputMode('mobile'); e.preventDefault(); mobileInputs.yaw = 1; }, { passive: false });
+      btnRudderL.addEventListener('touchend', (e) => { e.preventDefault(); mobileInputs.yaw = 0; }, { passive: false });
+      btnRudderR.addEventListener('touchstart', (e) => { setInputMode('mobile'); e.preventDefault(); mobileInputs.yaw = -1; }, { passive: false });
+      btnRudderR.addEventListener('touchend', (e) => { e.preventDefault(); mobileInputs.yaw = 0; }, { passive: false });
+
+      let cameraTouches = [];
+      let initialPinchDist = 0;
+      let initialCameraDist = 12;
+
+      window.addEventListener('touchstart', (e) => {
+        if (isPaused) return;
+        setInputMode('mobile');
+
+        cameraTouches = Array.from(e.touches).filter(t => t.identifier !== joyTouchId && t.identifier !== thrTouchId);
+
+        if (cameraTouches.length === 1) {
+          lastCamPos = { x: cameraTouches[0].clientX, y: cameraTouches[0].clientY };
+        } else if (cameraTouches.length >= 2) {
+          const dx = cameraTouches[0].clientX - cameraTouches[1].clientX;
+          const dy = cameraTouches[0].clientY - cameraTouches[1].clientY;
+          initialPinchDist = Math.hypot(dx, dy);
+          initialCameraDist = targetCameraDistance;
+        }
+      }, { passive: true });
+
+      let lastCamPos = { x: 0, y: 0 };
+
+      window.addEventListener('touchmove', (e) => {
+        if (isPaused) return;
+        
+        cameraTouches = Array.from(e.touches).filter(t => t.identifier !== joyTouchId && t.identifier !== thrTouchId);
+
+        if (cameraTouches.length === 1) {
+          const t = cameraTouches[0];
+          const dx = t.clientX - lastCamPos.x;
+          const dy = t.clientY - lastCamPos.y;
+
+          targetCameraYaw -= dx * 0.005;
+          targetCameraPitch += dy * 0.005;
+          targetCameraPitch = Math.max(-1.4, Math.min(1.4, targetCameraPitch));
+
+          lastCamPos = { x: t.clientX, y: t.clientY };
+        } else if (cameraTouches.length >= 2) {
+          const dx = cameraTouches[0].clientX - cameraTouches[1].clientX;
+          const dy = cameraTouches[0].clientY - cameraTouches[1].clientY;
+          const currentPinchDist = Math.hypot(dx, dy);
+
+          if (initialPinchDist > 0) {
+            const factor = initialPinchDist / currentPinchDist;
+            targetCameraDistance = Math.max(3, Math.min(50, initialCameraDist * factor));
+            saveSettings();
+          }
+        }
+      }, { passive: true });
+
+      const handleTouchEnd = (e) => {
+        cameraTouches = Array.from(e.touches).filter(t => t.identifier !== joyTouchId && t.identifier !== thrTouchId);
+        if (cameraTouches.length === 1) {
+          lastCamPos = { x: cameraTouches[0].clientX, y: cameraTouches[0].clientY };
+        }
+      };
+      window.addEventListener('touchend', handleTouchEnd);
+      window.addEventListener('touchcancel', handleTouchEnd);
+    }
+
+    initMobileControls();
+
+    document.getElementById('menu-panel').addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    document.getElementById('pause-overlay').addEventListener('click', (e) => {
+      if (!isPaused) return;
+      if (currentInputMode === 'pc' && !isTouchDevice && document.pointerLockElement !== document.body) {
+        try { document.body.requestPointerLock(); } catch(err) {}
+      }
+      setPauseState(false);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (document.pointerLockElement === document.body && !isPaused) {
+        targetCameraYaw -= e.movementX * 0.003;
+        targetCameraPitch += e.movementY * 0.003;
+        targetCameraPitch = Math.max(-1.4, Math.min(1.4, targetCameraPitch));
+      }
+    });
+
+    window.addEventListener('wheel', (e) => {
+      if (isPaused) return;
+
+      targetCameraDistance += e.deltaY * 0.01;
+      targetCameraDistance = Math.max(3, Math.min(50, targetCameraDistance));
+      
+      saveSettings();
+    }, { passive: true });
+
+    window.addEventListener('keydown', (e) => { 
+      setInputMode('pc');
+      if (e.key === 'Escape') {
+        togglePause();
+        return;
+      }
+
+      const k = e.key.toLowerCase();
+      keys[k] = true; 
+      if (e.key === ' ') keys['space'] = true;
+      if (k === 'r') rotateModelY();
+      if (k === 't') rotateModelX();
+      if (k === 'y') rotateModelZ();
+    });
+
+    window.addEventListener('keyup', (e) => { 
+      const k = e.key.toLowerCase();
+      keys[k] = false; 
+      if (e.key === ' ') keys['space'] = false;
+    });
+
+    window.addEventListener('resize', () => {
+      const pr = Math.min(window.devicePixelRatio, 2);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      
+      renderer.setPixelRatio(pr);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      
+      composer.setSize(window.innerWidth, window.innerHeight);
+      fxaaPass.uniforms['resolution'].value.x = 1 / (window.innerWidth * pr);
+      fxaaPass.uniforms['resolution'].value.y = 1 / (window.innerHeight * pr);
+
+      resizePreviewCanvas();
+    });
+
+    const clock = new THREE.Clock();
+
+    updateInitialPositionUI();
+    updateCameraPositionInstant();
+
+    restoreSettings();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = Math.min(clock.getDelta(), 0.1);
+
+      if (isPaused) {
+        if (previewGroup) {
+          if (document.getElementById('tab-model-settings').classList.contains('active')) {
+            previewRenderer.render(previewScene, previewCamera);
+          }
+        }
+        composer.render();
+        return;
+      }
+
+      if (keys['shift']) throttle = Math.min(1.0, throttle + 0.5 * delta);
+      if (keys['space']) throttle = Math.max(0.0, throttle - 0.5 * delta);
+
+      thrustText.textContent = `${Math.round(throttle * 100)}%`;
+      thrustFill.style.width = `${Math.round(throttle * 100)}%`;
+      const thrHandle = document.getElementById('throttle-handle');
+      if (thrHandle) thrHandle.style.bottom = `${throttle * 100}%`;
+
+      const currentSpeed = velocity.length();
+      const controlEffectiveness = Math.max(0.5, Math.min(1.0, currentSpeed / 10.0));
+
+      let targetPitch = 0, targetRoll = 0, targetYaw = 0;
+
+      if (currentInputMode === 'pc') {
+        if (keys['w']) targetPitch += 1.2 * controlEffectiveness;
+        if (keys['s']) targetPitch -= 1.2 * controlEffectiveness;
+        if (keys['a']) targetRoll -= 3.15 * controlEffectiveness;
+        if (keys['d']) targetRoll += 3.15 * controlEffectiveness;
+        if (keys['q']) targetYaw += 0.5625 * controlEffectiveness;
+        if (keys['e']) targetYaw -= 0.5625 * controlEffectiveness;
+      } else {
+        if (Math.abs(mobileInputs.pitch) > 0.01) {
+          targetPitch += mobileInputs.pitch * 1.2 * controlEffectiveness;
+        }
+        if (Math.abs(mobileInputs.roll) > 0.01) {
+          targetRoll += mobileInputs.roll * 3.15 * controlEffectiveness;
+        }
+        if (Math.abs(mobileInputs.yaw) > 0.01) {
+          targetYaw += mobileInputs.yaw * 0.5625 * controlEffectiveness;
+        }
+      }
+
+      pitchVel += (targetPitch - pitchVel) * delta * 6.0;
+      rollVel += (targetRoll - rollVel) * delta * 6.0;
+      yawVel += (targetYaw - yawVel) * delta * 6.0;
+
+      airplane.rotateX(pitchVel * delta);
+      airplane.rotateZ(rollVel * delta);
+      airplane.rotateY(yawVel * delta);
+
+      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(airplane.quaternion);
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(airplane.quaternion);
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(airplane.quaternion);
+
+      const thrustForce = forward.clone().multiplyScalar(throttle * MAX_THRUST);
+      const gravityForce = new THREE.Vector3(0, -GRAVITY * MASS, 0);
+      const dragForce = velocity.clone().multiplyScalar(-DRAG_COEFF * currentSpeed);
+
+      let liftForce = new THREE.Vector3();
+      let sideForce = new THREE.Vector3();
+
+      if (currentSpeed > 0.1) {
+        const invQuat = airplane.quaternion.clone().invert();
+        const localVel = velocity.clone().applyQuaternion(invQuat);
+        sideForce = right.clone().multiplyScalar(-localVel.x * 0.095);
+
+        let aoa = 0;
+        if (Math.abs(localVel.z) > 0.001) aoa = Math.atan2(-localVel.y, localVel.z);
+        aoa = Math.max(-0.35, Math.min(0.35, aoa));
+
+        liftForce = up.clone().multiplyScalar(0.06 * (aoa + 0.02) * currentSpeed * currentSpeed);
+        velocity.lerp(forward.clone().multiplyScalar(currentSpeed), delta * 0.4);
+      }
+
+      const totalForce = new THREE.Vector3().add(thrustForce).add(gravityForce).add(dragForce).add(liftForce).add(sideForce);
+      velocity.addScaledVector(totalForce.divideScalar(MASS), delta);
+
+      const substeps = 4;
+      const subDelta = delta / substeps;
+
+      for (let s = 0; s < substeps; s++) {
+        airplane.position.addScaledVector(velocity, subDelta);
+
+        const sphereRadius = 2.5;
+        const p = airplane.position;
+        const groundY = getTerrainHeight(p.x, p.z);
+
+        if (p.y - sphereRadius < groundY) {
+          const penetration = groundY - (p.y - sphereRadius);
+
+          const d = 1.0;
+          const hL = getTerrainHeight(p.x - d, p.z);
+          const hR = getTerrainHeight(p.x + d, p.z);
+          const hB = getTerrainHeight(p.x, p.z - d);
+          const hF = getTerrainHeight(p.x, p.z + d);
+          const normal = new THREE.Vector3(hL - hR, 2.0 * d, hB - hF).normalize();
+
+          p.addScaledVector(normal, penetration);
+
+          const vDotN = velocity.dot(normal);
+          if (vDotN < 0) {
+            velocity.sub(normal.clone().multiplyScalar(1.2 * vDotN));
+            velocity.multiplyScalar(0.85);
+          }
+
+          if (throttle > 0.1) {
+            velocity.addScaledVector(normal, throttle * 120.0 * subDelta);
+          }
+        }
+      }
+
+      const speedKmh = velocity.length() * 3.6;
+
+      const targetFov = Math.min(90, 60 + (speedKmh * (30 / 800)));
+      camera.fov = targetFov;
+      camera.updateProjectionMatrix();
+
+      speedText.textContent = speedKmh.toFixed(1);
+      altText.textContent = airplane.position.y.toFixed(1);
+      posXText.textContent = airplane.position.x.toFixed(0);
+      posYText.textContent = airplane.position.y.toFixed(0);
+      posZText.textContent = airplane.position.z.toFixed(0);
+
+      dirLight.position.set(airplane.position.x + 300, airplane.position.y + 600, airplane.position.z + 300);
+      dirLight.target.position.copy(airplane.position);
+
+      const targetHeading = Math.atan2(forward.x, forward.z);
+      let diffHeading = targetHeading - currentPlaneHeading;
+      while (diffHeading < -Math.PI) diffHeading += Math.PI * 2;
+      while (diffHeading > Math.PI) diffHeading -= Math.PI * 2;
+      currentPlaneHeading += diffHeading * Math.min(1.0, delta * 5.0);
+
+      cameraYaw += (targetCameraYaw - cameraYaw) * Math.min(1.0, delta * 12.0);
+      cameraPitch += (targetCameraPitch - cameraPitch) * Math.min(1.0, delta * 12.0);
+      cameraDistance += (targetCameraDistance - cameraDistance) * Math.min(1.0, delta * 12.0);
+
+      updateCameraPositionInstant();
+
+      composer.render();
+    }
+
+    animate();
+  </script>
+</body>
+</html>
